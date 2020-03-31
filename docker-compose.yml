@@ -1,0 +1,46 @@
+version: '3.1'
+services:
+  websvr:
+    build:
+      context: ./services/websvr
+      dockerfile: Dockerfile
+    ports:
+      - 80:80
+    volumes:
+      - ./services/websvr/default.conf:/etc/nginx/conf.d/default.conf
+      - ./services/websvr/public:/usr/share/nginx/html
+    depends_on:
+      - appsvr
+  appsvr:
+    build: 
+      context: ./services/appsvr
+      dockerfile: Dockerfile
+    volumes:
+      - ./go:/go
+      - .:/root/workspace
+      - ~/.gitconfig:/root/.gitconfig
+    ports:
+      - 8080:80
+    command: tail -f > /dev/null
+    depends_on:
+      - dbsvr
+  dbsvr:
+    image: postgres
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root00
+    volumes:
+      - ./services/dbsvr/init:/docker-entrypoint-initdb.d
+  pgweb:
+    image: sosedoff/pgweb
+    ports: 
+      - "8081:8081"
+    environment:
+      - DATABASE_URL=postgres://root:root00@dbsvr:5432/dic?sslmode=disable
+    links: 
+      - dbsvr:postgres
+    restart: always
+    depends_on:
+      - dbsvr
